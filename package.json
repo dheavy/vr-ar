@@ -1,0 +1,23 @@
+{
+  "name": "vr-ar",
+  "version": "1.0.0",
+  "description": "Simple test app to fiddle with VR/AR with Google Cardboard.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/dheavy/vr-ar.git"
+  },
+  "author": "Davy Peter Braun <hello@davybraun.com> (http://davybraun.com)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dheavy/vr-ar/issues"
+  },
+  "homepage": "https://github.com/dheavy/vr-ar#readme",
+  "dependencies": {
+    "express": "^4.14.0",
+    "three": "^0.82.1"
+  }
+}
