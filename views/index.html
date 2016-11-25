@@ -2,6 +2,13 @@
 <html>
   <head>
     <title>VR / AR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+    <script type="text/javascript" src="static/js/three.min.js"></script>
+    <script type="text/javascript" src="static/js/js-aruco/svd.js"></script>
+    <script type="text/javascript" src="static/js/js-aruco/posit1-patched.js"></script>
+    <script type="text/javascript" src="static/js/js-aruco/cv.js"></script>
+    <script type="text/javascript" src="static/js/js-aruco/aruco.js"></script>
+    <script type="text/javascript" src="static/js/threex.jsarucomarker.js"></script>
     <style type="text/css">
       html, body {
         margin: 0;
@@ -10,17 +17,17 @@
         height: 100%;
       }
 
-      .content {
+      video, canvas {
+        top: 0;
+        left: 0;
         position: absolute;
-        width: 100%;
-        height: auto;
+        width: auto;
+        height: 100%;
       }
     </style>
   </head>
 
   <body>
-    <video autoplay class="content"></video>
-
     <script type="text/javascript">
       'use strict';
 
@@ -53,29 +60,89 @@
       }
 
       function getStream(source) {
-        var constraints = {};
+        return new Promise(function (resolve, reject) {
+          var constraints = {};
 
-        constraints.video = {
-          optional: [{sourceId: source.deviceId}]
-        };
+          constraints.video = {
+            optional: [{sourceId: source.deviceId}]
+          };
 
-        getUserMedia(constraints, function(stream) {
-          var mediaControl = document.querySelector('video');
-          if (navigator.mozGetUserMedia) {
-            mediaControl.mozSrcObject = stream;
-          } else {
-            mediaControl.srcObject = stream;
-            mediaControl.src = (window.URL || window.webkitURL).createObjectURL(stream);
-          }
-        }, function (err) {
-          alert('Error: ' + err);
+          getUserMedia(constraints, function(stream) {
+            var vid = document.createElement('video');
+            vid.autoplay = true;
+            if (navigator.mozGetUserMedia) {
+              vid.mozSrcObject = stream;
+            } else {
+              vid.srcObject = stream;
+              vid.src = (window.URL || window.webkitURL).createObjectURL(stream);
+            }
+            return resolve(vid);
+          }, function (err) {
+            return reject(err);
+          });
         });
       }
 
-      window.onload = function () {
-        getSource().then(function (cam) {
-          getStream(cam);
+      function initThree(videoElement) {
+        if (!videoElement) throw new Error('<video> element is missing');
+
+        var renderer = new THREE.WebGLRenderer({
+          antialias: true,
+          alpha: true
         });
+        document.body.appendChild(videoElement);
+
+        var scene = new THREE.Scene();
+        var camera = new THREE.PerspectiveCamera(40, videoElement.offsetWidth / videoElement.offsetHeight, 0.01, 1000);
+        camera.position.z = 2;
+
+        var markerObject3D = new THREE.Object3D();
+        scene.add(markerObject3D);
+
+        var geom = new THREE.PlaneGeometry(1, 1, 10, 10);
+        var mat = new THREE.MeshBasicMaterial({wireframe: true});
+        var mesh = new THREE.Mesh(geom, mat);
+        markerObject3D.add(mesh);
+        markerObject3D.add(new THREE.AxisHelper());
+
+        window.addEventListener('resize', function () {
+          renderer.setSize(videoElement.offsetWidth, videoElement.offsetHeight);
+          camera.aspect = videoElement.offsetWidth / videoElement.offsetHeight;
+          camera.updateProjectionMatrix();
+        });
+
+        var jsArucoMarker = new THREEx.JsArucoMarker();
+        jsArucoMarker.videoScaleDown = 2;
+
+        markerObject3D.visible = false;
+
+        window.requestAnimationFrame(function animate () {
+          markerObject3D.visible = false;
+          jsArucoMarker.detectMarkers(videoElement).forEach(function (marker) {
+            jsArucoMarker.markerToObject3D(marker, markerObject3D);
+            markerObject3D.visible = true;
+          });
+
+          renderer.render(scene, camera);
+
+          requestAnimationFrame(animate);
+        });
+
+        setTimeout(function () {
+          renderer.setSize(videoElement.offsetWidth, videoElement.offsetHeight);
+          camera.aspect = videoElement.offsetWidth / videoElement.offsetHeight;
+          camera.updateProjectionMatrix();
+          document.body.appendChild(renderer.domElement);
+        }, 5000);
+      }
+
+      window.onload = function () {
+        if (screen) {
+          screen.orientation.lock('landscape')
+        }
+        getSource()
+          .then(getStream)
+          .then(initThree);
       };
     </script>
   </body>
